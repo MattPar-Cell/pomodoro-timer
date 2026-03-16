@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pomodoro</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #e05c3a;
+      --work-color: #e05c3a;
+      --short-color: #3ab8e0;
+      --long-color: #3ae07a;
+      --mono: 'Share Tech Mono', monospace;
+      --sans: 'Barlow', sans-serif;
+      --radius: 16px;
+
+      /* Dark glass */
+      --bg-a: #0a0a1a;
+      --bg-b: #12081e;
+      --glass-bg: rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.10);
+      --glass-shine: rgba(255,255,255,0.07);
+      --glass-blur: 24px;
+      --text: #f0eeff;
+      --muted: rgba(255,255,255,0.35);
+      --surface: rgba(255,255,255,0.06);
+      --shadow: rgba(0,0,0,0.5);
+    }
+
+    body.light {
+      --bg-a: #c9d6f0;
+      --bg-b: #e8d5f5;
+      --glass-bg: rgba(255,255,255,0.35);
+      --glass-border: rgba(255,255,255,0.65);
+      --glass-shine: rgba(255,255,255,0.5);
+      --text: #1a1030;
+      --muted: rgba(20,10,50,0.45);
+      --surface: rgba(255,255,255,0.25);
+      --shadow: rgba(100,80,160,0.15);
+    }
+
+    body {
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+      font-size: 18px;
+      user-select: none;
+      color: var(--text);
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Animated gradient background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 20%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 80%, color-mix(in srgb, #7b5ea7 25%, transparent) 0%, transparent 55%),
+        radial-gradient(ellipse at 60% 10%, color-mix(in srgb, #3ab8e0 12%, transparent) 0%, transparent 45%),
+        linear-gradient(135deg, var(--bg-a), var(--bg-b));
+      transition: background 0.6s ease;
+      z-index: 0;
+    }
+
+    /* Floating orbs */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 75% 25%, color-mix(in srgb, var(--accent) 12%, transparent) 0%, transparent 30%),
+        radial-gradient(circle at 25% 75%, color-mix(in srgb, #5b8dee 10%, transparent) 0%, transparent 30%);
+      animation: orb-shift 10s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes orb-shift {
+      0%   { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(30px, -20px) scale(1.08); }
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.6rem;
+    }
+
+    /* ── Glass card mixin ── */
+    .glass {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-radius: var(--radius);
+      box-shadow:
+        0 8px 32px var(--shadow),
+        inset 0 1px 0 var(--glass-shine);
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.9rem 1.4rem;
+    }
+
+    .logo {
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      letter-spacing: 0.22em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .logo span { color: var(--accent); }
+    .session-count {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+    }
+
+    /* ── Mode Tabs ── */
+    .mode-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 5px;
+    }
+    .mode-tab {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.65rem;
+      border-radius: calc(var(--radius) - 6px);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .mode-tab:hover { color: var(--text); background: var(--glass-shine); }
+    .mode-tab.active {
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      color: var(--accent);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+
+    /* ── Shape Switcher ── */
+    .shape-switcher {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      padding: 0.6rem;
+    }
+    .shape-btn {
+      background: transparent;
+      border: 1px solid var(--glass-border);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.4rem 0.85rem;
+      border-radius: 99px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      backdrop-filter: blur(8px);
+    }
+    .shape-btn:hover { color: var(--text); border-color: var(--accent); }
+    .shape-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+    .shape-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+
+    /* ── Timer wrapper ── */
+    .timer-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.4rem;
+      padding: 2.5rem 2rem;
+    }
+
+    /* ── CIRCLE ── */
+    .ring-container {
+      position: relative;
+      width: 340px;
+      height: 340px;
+      display: none;
+    }
+    .shape-circle .ring-container { display: block; }
+
+    svg.ring { width: 100%; height: 100%; transform: rotate(-90deg); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 40%, transparent)); }
+    .ring-bg { fill: none; stroke: var(--glass-border); stroke-width: 2.5; }
+    .ring-progress {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 3;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.5s linear, stroke 0.3s ease;
+      filter: drop-shadow(0 0 6px var(--accent));
+    }
+
+    /* Inner glass circle */
+    .ring-inner-glass {
+      position: absolute;
+      inset: 24px;
+      border-radius: 50%;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      box-shadow:
+        inset 0 2px 0 var(--glass-shine),
+        0 8px 32px var(--shadow);
+    }
+
+    .timer-inner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+
+    /* ── SQUARE ── */
+    .square-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      width: 360px;
+    }
+    .shape-square .square-container { display: flex; }
+
+    .square-box {
+      width: 100%;
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+      gap: 0.5rem;
+      position: relative;
+      overflow: hidden;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      box-shadow: 0 8px 32px var(--shadow), inset 0 1px 0 var(--glass-shine);
+    }
+    /* Glowing border on accent color */
+    .square-box::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: var(--radius);
+      border: 1px solid var(--accent);
+      opacity: 0.5;
+      box-shadow: 0 0 20px color-mix(in srgb, var(--accent) 30%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent) 10%, transparent);
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .square-fill {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(to top, color-mix(in srgb, var(--accent) 15%, transparent), transparent);
+      transition: height 0.5s linear;
+    }
+    .square-box .time-display,
+    .square-box .mode-label { position: relative; z-index: 1; }
+
+    .progress-bar-wrap {
+      width: 100%;
+      height: 4px;
+      background: var(--glass-border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.5s linear, background 0.3s;
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    /* ── MINIMAL ── */
+    .minimal-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 3rem 3rem;
+      width: 100%;
+    }
+    .shape-minimal .minimal-container { display: flex; }
+    .minimal-container .time-display { font-size: 9rem; text-shadow: 0 0 40px color-mix(in srgb, var(--accent) 40%, transparent); }
+    .minimal-progress {
+      width: 220px;
+      height: 2px;
+      background: var(--glass-border);
+      border-radius: 1px;
+      margin-top: 0.4rem;
+    }
+    .minimal-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 1px;
+      transition: width 0.5s linear, background 0.3s;
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    /* ── Shared time display ── */
+    .time-display {
+      font-family: var(--mono);
+      font-size: 6.5rem;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      line-height: 1;
+      transition: color 0.3s ease;
+      text-shadow: 0 2px 20px color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+    .time-display.pulse { animation: pulse 0.3s ease; }
+    @keyframes pulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+    .mode-label {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    /* ── Controls ── */
+    .controls { display: flex; align-items: center; justify-content: center; gap: 1rem; }
+    .btn {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: var(--radius);
+      transition: all 0.2s ease;
+      font-family: var(--mono);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 4px 12px var(--shadow), inset 0 1px 0 var(--glass-shine);
+    }
+    .btn:hover {
+      border-color: var(--accent);
+      color: var(--text);
+      box-shadow: 0 4px 20px color-mix(in srgb, var(--accent) 25%, transparent), inset 0 1px 0 var(--glass-shine);
+    }
+    .btn:active { transform: scale(0.96); }
+
+    .btn-icon { width: 60px; height: 60px; display: grid; place-items: center; font-size: 1.3rem; border-radius: 50%; }
+    .btn-main {
+      width: 180px; height: 64px;
+      font-size: 0.8rem; letter-spacing: 0.22em; text-transform: uppercase;
+      border-color: var(--accent);
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+    }
+    .btn-main:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text); }
+    .btn-main.running { animation: border-pulse 2s ease infinite; }
+    @keyframes border-pulse {
+      0%, 100% { box-shadow: 0 4px 12px var(--shadow), 0 0 0 0 transparent, inset 0 1px 0 var(--glass-shine); }
+      50%       { box-shadow: 0 4px 12px var(--shadow), 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent), inset 0 1px 0 var(--glass-shine); }
+    }
+
+    /* ── Dots ── */
+    .session-dots { display: flex; gap: 8px; justify-content: center; }
+    .dot { width: 9px; height: 9px; border-radius: 2px; background: var(--glass-border); transition: all 0.3s ease; }
+    .dot.done { background: var(--work-color); box-shadow: 0 0 6px var(--work-color); }
+    .dot.current { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: dot-blink 1s ease infinite; }
+    @keyframes dot-blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ── Stats ── */
+    .status-bar {
+      display: flex;
+      justify-content: space-around;
+      padding: 1.2rem 2rem;
+    }
+    .status-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .status-val { font-family: var(--mono); font-size: 1.6rem; color: var(--text); }
+    .status-key { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; }
+
+    /* ── Settings ── */
+    .settings-section { overflow: hidden; }
+    .settings-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.4rem;
+      cursor: pointer; color: var(--muted);
+      font-family: var(--mono); font-size: 0.75rem;
+      letter-spacing: 0.2em; text-transform: uppercase; transition: color 0.15s;
+    }
+    .settings-toggle:hover { color: var(--text); }
+    .settings-chevron { transition: transform 0.25s ease; }
+    .settings-chevron.open { transform: rotate(180deg); }
+    .settings-panel { display: none; flex-direction: column; gap: 1rem; padding: 0 1.4rem 1.4rem; }
+    .settings-panel.open { display: flex; }
+    .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .setting-label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; flex: 1; }
+    .setting-input { display: flex; align-items: center; gap: 0.5rem; }
+    .setting-input button {
+      background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--muted);
+      width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 1rem;
+      transition: all 0.15s; backdrop-filter: blur(8px);
+    }
+    .setting-input button:hover { border-color: var(--accent); color: var(--text); }
+    .setting-val { font-family: var(--mono); font-size: 0.9rem; color: var(--text); min-width: 32px; text-align: center; }
+    .setting-toggle-row { display: flex; align-items: center; justify-content: space-between; }
+    .toggle-switch { position: relative; width: 40px; height: 22px; }
+    .toggle-switch input { display: none; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--glass-border); border-radius: 11px; cursor: pointer; transition: background 0.2s;
+      border: 1px solid var(--glass-border);
+    }
+    .toggle-track::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--muted); transition: all 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-track { background: color-mix(in srgb, var(--accent) 35%, transparent); border-color: var(--accent); }
+    .toggle-switch input:checked + .toggle-track::after { transform: translateX(18px); background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+    /* ── Notify ── */
+    .notify {
+      position: fixed; top: 1.5rem; left: 50%;
+      transform: translateX(-50%) translateY(-120px);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      color: var(--text); font-family: var(--mono); font-size: 0.72rem;
+      letter-spacing: 0.12em; padding: 0.7rem 1.4rem;
+      border-radius: 99px;
+      box-shadow: 0 8px 32px var(--shadow), 0 0 20px color-mix(in srgb, var(--accent) 20%, transparent);
+      transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 100; white-space: nowrap;
+    }
+    .notify.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body class="shape-circle">
+  <div class="app">
+
+    <!-- Header -->
+    <header class="glass">
+      <div class="logo">POMO<span>//</span>DORO</div>
+      <div style="display:flex;align-items:center;gap:1rem">
+        <button class="btn btn-icon" id="btn-theme" title="Toggle light/dark" style="width:40px;height:40px;font-size:1rem;border-radius:50%">☀</button>
+        <div class="session-count" id="session-count">SESSION 1 / 4</div>
+      </div>
+    </header>
+
+    <!-- Mode Tabs -->
+    <div class="mode-tabs glass">
+      <button class="mode-tab active" data-mode="work">Work</button>
+      <button class="mode-tab" data-mode="short">Short Break</button>
+      <button class="mode-tab" data-mode="long">Long Break</button>
+    </div>
+
+    <!-- Shape Switcher -->
+    <div class="shape-switcher glass">
+      <button class="shape-btn active" data-shape="circle">
+        <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/></svg>Circle
+      </button>
+      <button class="shape-btn" data-shape="square">
+        <svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2"/></svg>Square
+      </button>
+      <button class="shape-btn" data-shape="minimal">
+        <svg viewBox="0 0 16 16"><line x1="2" y1="6" x2="14" y2="6"/><line x1="2" y1="10" x2="14" y2="10"/></svg>Minimal
+      </button>
+    </div>
+
+    <!-- Timer -->
+    <div class="timer-wrapper glass">
+
+      <!-- CIRCLE -->
+      <div class="ring-container">
+        <svg class="ring" viewBox="0 0 260 260">
+          <circle class="ring-bg" cx="130" cy="130" r="120"/>
+          <circle class="ring-progress" id="ring-progress" cx="130" cy="130" r="120"/>
+        </svg>
+        <div class="ring-inner-glass"></div>
+        <div class="timer-inner">
+          <div class="time-display" id="time-display-circle">25:00</div>
+          <div class="mode-label" id="mode-label-circle">FOCUS</div>
+        </div>
+      </div>
+
+      <!-- SQUARE -->
+      <div class="square-container">
+        <div class="square-box">
+          <div class="square-fill" id="square-fill"></div>
+          <div class="time-display" id="time-display-square">25:00</div>
+          <div class="mode-label" id="mode-label-square">FOCUS</div>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="progress-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- MINIMAL -->
+      <div class="minimal-container">
+        <div class="time-display" id="time-display-minimal">25:00</div>
+        <div class="mode-label" id="mode-label-minimal">FOCUS</div>
+        <div class="minimal-progress">
+          <div class="minimal-progress-fill" id="minimal-progress-fill"></div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <button class="btn btn-icon" id="btn-reset" title="Reset">↺</button>
+        <button class="btn btn-main" id="btn-start">START</button>
+        <button class="btn btn-icon" id="btn-skip" title="Skip">↝</button>
+      </div>
+
+      <!-- Dots -->
+      <div class="session-dots" id="session-dots"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="status-bar glass">
+      <div class="status-item">
+        <div class="status-val" id="stat-completed">0</div>
+        <div class="status-key">Completed</div>
+      </div>
+      <div class="status-item">
+        <div class="status-val" id="stat-focus">0m</div>
+        <div class="status-key">Focus time</div>
+      </div>
+      <div class="status-item">
+        <div class="status-val" id="stat-streak">0</div>
+        <div class="status-key">Streak</div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="settings-section glass">
+      <div class="settings-toggle" id="settings-toggle">
+        <span>Settings</span>
+        <span class="settings-chevron" id="settings-chevron">▾</span>
+      </div>
+      <div class="settings-panel" id="settings-panel">
+        <div class="setting-row">
+          <span class="setting-label">Work</span>
+          <div class="setting-input">
+            <button id="work-dec">−</button>
+            <span class="setting-val" id="work-val">25</span>
+            <button id="work-inc">+</button>
+          </div>
+          <span class="setting-label" style="text-align:right">min</span>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Short Break</span>
+          <div class="setting-input">
+            <button id="short-dec">−</button>
+            <span class="setting-val" id="short-val">5</span>
+            <button id="short-inc">+</button>
+          </div>
+          <span class="setting-label" style="text-align:right">min</span>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Long Break</span>
+          <div class="setting-input">
+            <button id="long-dec">−</button>
+            <span class="setting-val" id="long-val">15</span>
+            <button id="long-inc">+</button>
+          </div>
+          <span class="setting-label" style="text-align:right">min</span>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Sessions / long break</span>
+          <div class="setting-input">
+            <button id="sessions-dec">−</button>
+            <span class="setting-val" id="sessions-val">4</span>
+            <button id="sessions-inc">+</button>
+          </div>
+          <span class="setting-label" style="text-align:right"></span>
+        </div>
+        <div class="setting-toggle-row">
+          <span class="setting-label">Auto-start next</span>
+          <label class="toggle-switch"><input type="checkbox" id="toggle-autostart"/><div class="toggle-track"></div></label>
+        </div>
+        <div class="setting-toggle-row">
+          <span class="setting-label">Sound alerts</span>
+          <label class="toggle-switch"><input type="checkbox" id="toggle-sound" checked/><div class="toggle-track"></div></label>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="notify" id="notify"></div>
+
+  <script>
+    const state = {
+      mode: 'work', running: false,
+      secondsLeft: 25*60, totalSeconds: 25*60,
+      pomodoroCount: 0, focusMinutes: 0, streak: 0, interval: null,
+      shape: localStorage.getItem('shape') || 'circle',
+      settings: { work:25, short:5, long:15, sessionsPerLong:4, autostart:false, sound:true }
+    };
+
+    const $start = document.getElementById('btn-start');
+    const $reset = document.getElementById('btn-reset');
+    const $skip  = document.getElementById('btn-skip');
+    const $dots  = document.getElementById('session-dots');
+    const $scount= document.getElementById('session-count');
+    const $notify= document.getElementById('notify');
+    const $ring  = document.getElementById('ring-progress');
+
+    const R = 120, CIRC = 2*Math.PI*R;
+    $ring.style.strokeDasharray = CIRC;
+
+    const COLORS = { work:'#e05c3a', short:'#3ab8e0', long:'#3ae07a' };
+    const LABELS = { work:'FOCUS', short:'SHORT BREAK', long:'LONG BREAK' };
+
+    // ── Shape ──
+    function applyShape(shape) {
+      state.shape = shape;
+      document.body.className = document.body.className.replace(/shape-\w+/g,'').trim() + ' shape-' + shape;
+      if (document.body.classList.contains('light')) document.body.classList.add('light');
+      document.querySelectorAll('.shape-btn').forEach(b => b.classList.toggle('active', b.dataset.shape === shape));
+      localStorage.setItem('shape', shape);
+    }
+    document.querySelectorAll('.shape-btn').forEach(b => b.addEventListener('click', () => applyShape(b.dataset.shape)));
+
+    // ── Theme ──
+    const $btnTheme = document.getElementById('btn-theme');
+    let isLight = localStorage.getItem('theme') === 'light';
+    function applyTheme() {
+      document.body.classList.toggle('light', isLight);
+      $btnTheme.textContent = isLight ? '🌙' : '☀';
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    }
+    $btnTheme.addEventListener('click', () => { isLight = !isLight; applyTheme(); });
+
+    // ── Audio ──
+    function beep(type) {
+      if (!state.settings.sound) return;
+      try {
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        if (type==='end') {
+          osc.frequency.setValueAtTime(880,ctx.currentTime);
+          osc.frequency.setValueAtTime(660,ctx.currentTime+0.1);
+          osc.frequency.setValueAtTime(440,ctx.currentTime+0.2);
+          gain.gain.setValueAtTime(0.3,ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
+          osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.5);
+        } else {
+          osc.frequency.setValueAtTime(660,ctx.currentTime);
+          gain.gain.setValueAtTime(0.2,ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.12);
+          osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.12);
+        }
+      } catch(e){}
+    }
+
+    let notifyTimer;
+    function showNotify(msg) {
+      $notify.textContent = msg;
+      $notify.classList.add('show');
+      clearTimeout(notifyTimer);
+      notifyTimer = setTimeout(() => $notify.classList.remove('show'), 3000);
+    }
+
+    // ── Render ──
+    function render() {
+      const s = state.secondsLeft;
+      const m = Math.floor(s/60).toString().padStart(2,'0');
+      const sec = (s%60).toString().padStart(2,'0');
+      const timeStr = `${m}:${sec}`;
+      const progress = s / state.totalSeconds;
+      const col = COLORS[state.mode];
+
+      document.documentElement.style.setProperty('--accent', col);
+
+      ['circle','square','minimal'].forEach(sh => {
+        const td = document.getElementById(`time-display-${sh}`);
+        const ml = document.getElementById(`mode-label-${sh}`);
+        if (td) td.textContent = timeStr;
+        if (ml) ml.textContent = LABELS[state.mode];
+      });
+
+      // Circle
+      $ring.style.strokeDashoffset = CIRC*(1-progress);
+      $ring.style.stroke = col;
+
+      // Square
+      const sf = document.getElementById('square-fill');
+      if (sf) sf.style.height = ((1-progress)*100)+'%';
+      const pbf = document.getElementById('progress-bar-fill');
+      if (pbf) { pbf.style.width = (progress*100)+'%'; pbf.style.background = col; pbf.style.boxShadow = `0 0 8px ${col}`; }
+
+      // Minimal
+      const mpf = document.getElementById('minimal-progress-fill');
+      if (mpf) { mpf.style.width = (progress*100)+'%'; mpf.style.background = col; }
+
+      $start.textContent = state.running ? 'PAUSE' : 'START';
+      $start.classList.toggle('running', state.running);
+
+      const { sessionsPerLong } = state.settings;
+      $scount.textContent = `SESSION ${(state.pomodoroCount % sessionsPerLong)+1} / ${sessionsPerLong}`;
+
+      $dots.innerHTML = '';
+      for (let i=0; i<sessionsPerLong; i++) {
+        const d = document.createElement('div');
+        d.className = 'dot';
+        if (i < state.pomodoroCount % sessionsPerLong) d.classList.add('done');
+        else if (i === state.pomodoroCount % sessionsPerLong && state.mode==='work') d.classList.add('current');
+        $dots.appendChild(d);
+      }
+
+      document.getElementById('stat-completed').textContent = state.pomodoroCount;
+      document.getElementById('stat-focus').textContent = state.focusMinutes+'m';
+      document.getElementById('stat-streak').textContent = state.streak;
+      document.title = `${timeStr} — Pomodoro`;
+    }
+
+    function tick() {
+      if (state.secondsLeft<=0) { onTimerEnd(); return; }
+      state.secondsLeft--; render();
+    }
+
+    function onTimerEnd() {
+      clearInterval(state.interval); state.running=false; beep('end');
+      if (state.mode==='work') {
+        state.pomodoroCount++; state.focusMinutes+=state.settings.work; state.streak++;
+        const isLong = state.pomodoroCount % state.settings.sessionsPerLong === 0;
+        showNotify(isLong ? '🎉 Long break time!' : '☕ Short break time!');
+        if (state.settings.autostart) setTimeout(()=>setMode(isLong?'long':'short',true),800);
+        else setMode(isLong?'long':'short',false);
+      } else {
+        showNotify('💪 Back to work!');
+        if (state.settings.autostart) setTimeout(()=>setMode('work',true),800);
+        else setMode('work',false);
+      }
+    }
+
+    function startTimer() {
+      if (state.running) return;
+      state.running=true; state.interval=setInterval(tick,1000); beep('tick'); render();
+    }
+    function pauseTimer() { clearInterval(state.interval); state.running=false; render(); }
+    function resetTimer() { clearInterval(state.interval); state.running=false; state.secondsLeft=state.totalSeconds; render(); }
+
+    function setMode(mode, autostart=false) {
+      clearInterval(state.interval); state.running=false; state.mode=mode;
+      const mins = mode==='work'?state.settings.work:mode==='short'?state.settings.short:state.settings.long;
+      state.totalSeconds=mins*60; state.secondsLeft=state.totalSeconds;
+      document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('active',t.dataset.mode===mode));
+      render();
+      ['circle','square','minimal'].forEach(sh=>{
+        const td=document.getElementById(`time-display-${sh}`);
+        if(td){td.classList.add('pulse');setTimeout(()=>td.classList.remove('pulse'),300);}
+      });
+      if (autostart) startTimer();
+    }
+
+    $start.addEventListener('click', ()=>{ if(state.running) pauseTimer(); else startTimer(); });
+    $reset.addEventListener('click', resetTimer);
+    $skip.addEventListener('click', ()=>{ clearInterval(state.interval); state.running=false; onTimerEnd(); });
+    document.querySelectorAll('.mode-tab').forEach(t=>t.addEventListener('click',()=>setMode(t.dataset.mode)));
+
+    document.getElementById('settings-toggle').addEventListener('click', ()=>{
+      document.getElementById('settings-panel').classList.toggle('open');
+      document.getElementById('settings-chevron').classList.toggle('open');
+    });
+
+    function makeAdjuster(id,key,min,max,displayId,onUpdate){
+      const display=document.getElementById(displayId);
+      document.getElementById(`${id}-inc`).addEventListener('click',()=>{
+        if(state.settings[key]<max){state.settings[key]++;display.textContent=state.settings[key];onUpdate();}
+      });
+      document.getElementById(`${id}-dec`).addEventListener('click',()=>{
+        if(state.settings[key]>min){state.settings[key]--;display.textContent=state.settings[key];onUpdate();}
+      });
+    }
+
+    makeAdjuster('work','work',1,60,'work-val',()=>{if(state.mode==='work'){state.totalSeconds=state.settings.work*60;state.secondsLeft=state.totalSeconds;}render();});
+    makeAdjuster('short','short',1,30,'short-val',()=>{if(state.mode==='short'){state.totalSeconds=state.settings.short*60;state.secondsLeft=state.totalSeconds;}render();});
+    makeAdjuster('long','long',1,60,'long-val',()=>{if(state.mode==='long'){state.totalSeconds=state.settings.long*60;state.secondsLeft=state.totalSeconds;}render();});
+    makeAdjuster('sessions','sessionsPerLong',1,8,'sessions-val',()=>render());
+
+    document.getElementById('toggle-autostart').addEventListener('change',e=>state.settings.autostart=e.target.checked);
+    document.getElementById('toggle-sound').addEventListener('change',e=>state.settings.sound=e.target.checked);
+
+    document.addEventListener('keydown',e=>{
+      if(e.code==='Space'&&e.target===document.body){e.preventDefault();if(state.running)pauseTimer();else startTimer();}
+      if(e.code==='KeyR'&&!e.ctrlKey) resetTimer();
+    });
+
+    applyShape(state.shape);
+    applyTheme();
+    render();
+  </script>
+</body>
+</html>
