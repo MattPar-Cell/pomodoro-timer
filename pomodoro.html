@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pomodoro</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #141414;
+      --border: #2a2a2a;
+      --text: #e8e8e8;
+      --muted: #555;
+      --work-color: #e05c3a;
+      --short-color: #3ab8e0;
+      --long-color: #3ae07a;
+      --accent: var(--work-color);
+      --mono: 'Share Tech Mono', monospace;
+      --sans: 'Barlow', sans-serif;
+      --radius: 4px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      padding: 2rem 1rem;
+      user-select: none;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.04) 2px,
+        rgba(0,0,0,0.04) 4px
+      );
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 460px;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.75rem;
+    }
+
+    .logo {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .logo span {
+      color: var(--accent);
+    }
+
+    .session-count {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+    }
+
+    /* ── Mode Tabs ── */
+    .mode-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      background: var(--surface);
+      padding: 4px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .mode-tab {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.5rem;
+      border-radius: calc(var(--radius) - 2px);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .mode-tab:hover { color: var(--text); }
+
+    .mode-tab.active {
+      background: var(--bg);
+      color: var(--accent);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Timer Display ── */
+    .timer-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .ring-container {
+      position: relative;
+      width: 260px;
+      height: 260px;
+    }
+
+    svg.ring {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .ring-bg {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 3;
+    }
+
+    .ring-progress {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 3;
+      stroke-linecap: butt;
+      transition: stroke-dashoffset 0.5s linear, stroke 0.3s ease;
+    }
+
+    .ring-tick-marks {
+      position: absolute;
+      inset: 0;
+    }
+
+    .timer-inner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+    }
+
+    .time-display {
+      font-family: var(--mono);
+      font-size: 3.8rem;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      line-height: 1;
+      transition: color 0.3s ease;
+    }
+
+    .time-display.pulse {
+      animation: pulse 0.3s ease;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+
+    .mode-label {
+      font-family: var(--mono);
+      font-size: 0.55rem;
+      letter-spacing: 0.25em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: var(--radius);
+      transition: all 0.15s ease;
+      font-family: var(--mono);
+    }
+
+    .btn:hover { border-color: var(--accent); color: var(--text); }
+    .btn:active { transform: scale(0.96); }
+
+    .btn-icon {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      font-size: 0.8rem;
+    }
+
+    .btn-main {
+      width: 120px;
+      height: 48px;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-main:hover {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    .btn-main.running {
+      animation: border-pulse 2s ease infinite;
+    }
+
+    @keyframes border-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 transparent; }
+      50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+    }
+
+    /* ── Progress dots ── */
+    .session-dots {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 1px;
+      background: var(--border);
+      transition: all 0.3s ease;
+    }
+
+    .dot.done { background: var(--work-color); }
+    .dot.current { background: var(--accent); animation: dot-blink 1s ease infinite; }
+
+    @keyframes dot-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Settings Panel ── */
+    .settings-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0;
+      border-top: 1px solid var(--border);
+      cursor: pointer;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      transition: color 0.15s;
+    }
+
+    .settings-toggle:hover { color: var(--text); }
+
+    .settings-chevron {
+      transition: transform 0.2s ease;
+      font-size: 0.5rem;
+    }
+
+    .settings-chevron.open { transform: rotate(180deg); }
+
+    .settings-panel {
+      display: none;
+      flex-direction: column;
+      gap: 0.8rem;
+      padding-bottom: 0.5rem;
+    }
+
+    .settings-panel.open { display: flex; }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .setting-label {
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+      flex: 1;
+    }
+
+    .setting-input {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .setting-input button {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      width: 24px;
+      height: 24px;
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      line-height: 1;
+      transition: all 0.15s;
+    }
+
+    .setting-input button:hover { border-color: var(--accent); color: var(--text); }
+
+    .setting-val {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text);
+      min-width: 28px;
+      text-align: center;
+    }
+
+    .setting-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+    }
+
+    .toggle-switch input { display: none; }
+
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: all 0.2s;
+    }
+
+    .toggle-switch input:checked + .toggle-track { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+    .toggle-switch input:checked + .toggle-track::after { transform: translateX(16px); background: var(--accent); }
+
+    /* ── Status bar ── */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      padding-top: 0.75rem;
+      margin-top: -0.5rem;
+    }
+
+    .status-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .status-val {
+      font-family: var(--mono);
+      font-size: 1rem;
+      color: var(--text);
+    }
+
+    .status-key {
+      font-family: var(--mono);
+      font-size: 0.5rem;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    /* ── Notification overlay ── */
+    .notify {
+      position: fixed;
+      top: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      padding: 0.6rem 1.2rem;
+      border-radius: var(--radius);
+      transition: transform 0.3s ease;
+      z-index: 100;
+      white-space: nowrap;
+    }
+
+    .notify.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Favicon-as-title ── */
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- Header -->
+    <header>
+      <div class="logo">POMO<span>//</span>DORO</div>
+      <div class="session-count" id="session-count">SESSION 1 / 4</div>
+    </header>
+
+    <!-- Mode Tabs -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="work">Work</button>
+      <button class="mode-tab" data-mode="short">Short Break</button>
+      <button class="mode-tab" data-mode="long">Long Break</button>
+    </div>
+
+    <!-- Timer -->
+    <div class="timer-wrapper">
+      <div class="ring-container">
+        <svg class="ring" viewBox="0 0 260 260">
+          <circle class="ring-bg" cx="130" cy="130" r="120"/>
+          <circle class="ring-progress" id="ring-progress" cx="130" cy="130" r="120"/>
+        </svg>
+        <div class="timer-inner">
+          <div class="time-display" id="time-display">25:00</div>
+          <div class="mode-label" id="mode-label">FOCUS</div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <button class="btn btn-icon" id="btn-reset" title="Reset">↺</button>
+        <button class="btn btn-main" id="btn-start">START</button>
+        <button class="btn btn-icon" id="btn-skip" title="Skip">↝</button>
+      </div>
+
+      <!-- Session dots -->
+      <div class="session-dots" id="session-dots"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="status-bar">
+      <div class="status-item">
+        <div class="status-val" id="stat-completed">0</div>
+        <div class="status-key">Completed</div>
+      </div>
+      <div class="status-item">
+        <div class="status-val" id="stat-focus">0m</div>
+        <div class="status-key">Focus time</div>
+      </div>
+      <div class="status-item">
+        <div class="status-val" id="stat-streak">0</div>
+        <div class="status-key">Streak</div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div>
+      <div class="settings-toggle" id="settings-toggle">
+        <span>Settings</span>
+        <span class="settings-chevron" id="settings-chevron">▲</span>
+      </div>
+      <div class="settings-panel" id="settings-panel">
+        <div class="setting-row">
+          <span class="setting-label">Work</span>
+          <div class="setting-input">
+            <button id="work-dec">−</button>
+            <span class="setting-val" id="work-val">25</span>
+            <button id="work-inc">+</button>
+          </div>
+          <span class="setting-label" style="text-align:right">min</span>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Short Break</span>
+          <div class="setting-input">
+            <button id="short-dec">−</button>
+            <span class="setting-val" id="short-val">5</span>
+            <button id="short-inc">+</button>
+          </div>
+          <span class="setting-label" style="text-align:right">min</span>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Long Break</span>
+          <div class="setting-input">
+            <button id="long-dec">−</button>
+            <span class="setting-val" id="long-val">15</span>
+            <button id="long-inc">+</button>
+          </div>
+          <span class="setting-label" style="text-align:right">min</span>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Sessions until long break</span>
+          <div class="setting-input">
+            <button id="sessions-dec">−</button>
+            <span class="setting-val" id="sessions-val">4</span>
+            <button id="sessions-inc">+</button>
+          </div>
+          <span class="setting-label" style="text-align:right"></span>
+        </div>
+        <div class="setting-toggle-row">
+          <span class="setting-label">Auto-start next</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-autostart" />
+            <div class="toggle-track"></div>
+          </label>
+        </div>
+        <div class="setting-toggle-row">
+          <span class="setting-label">Sound alerts</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-sound" checked />
+            <div class="toggle-track"></div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Notification -->
+  <div class="notify" id="notify"></div>
+
+  <script>
+    // ── State ──
+    const state = {
+      mode: 'work',
+      running: false,
+      secondsLeft: 25 * 60,
+      totalSeconds: 25 * 60,
+      sessionsDone: 0,
+      pomodoroCount: 0, // completed work sessions
+      focusMinutes: 0,
+      streak: 0,
+      interval: null,
+      settings: {
+        work: 25, short: 5, long: 15, sessionsPerLong: 4,
+        autostart: false, sound: true
+      }
+    };
+
+    // ── DOM ──
+    const $time    = document.getElementById('time-display');
+    const $label   = document.getElementById('mode-label');
+    const $ring    = document.getElementById('ring-progress');
+    const $start   = document.getElementById('btn-start');
+    const $reset   = document.getElementById('btn-reset');
+    const $skip    = document.getElementById('btn-skip');
+    const $dots    = document.getElementById('session-dots');
+    const $scount  = document.getElementById('session-count');
+    const $notify  = document.getElementById('notify');
+    const $sPanelToggle = document.getElementById('settings-toggle');
+    const $sPanel  = document.getElementById('settings-panel');
+    const $sChevron = document.getElementById('settings-chevron');
+
+    // Ring circumference
+    const R = 120;
+    const CIRC = 2 * Math.PI * R;
+    $ring.style.strokeDasharray = CIRC;
+
+    // Colors per mode
+    const COLORS = { work: '#e05c3a', short: '#3ab8e0', long: '#3ae07a' };
+    const LABELS = { work: 'FOCUS', short: 'SHORT BREAK', long: 'LONG BREAK' };
+
+    // ── Audio ──
+    function beep(type) {
+      if (!state.settings.sound) return;
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        if (type === 'end') {
+          osc.frequency.setValueAtTime(880, ctx.currentTime);
+          osc.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+          osc.frequency.setValueAtTime(440, ctx.currentTime + 0.2);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.5);
+        } else {
+          osc.frequency.setValueAtTime(660, ctx.currentTime);
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.12);
+        }
+      } catch(e) {}
+    }
+
+    // ── Notifications ──
+    let notifyTimer;
+    function showNotify(msg) {
+      $notify.textContent = msg;
+      $notify.classList.add('show');
+      clearTimeout(notifyTimer);
+      notifyTimer = setTimeout(() => $notify.classList.remove('show'), 3000);
+    }
+
+    // ── Render ──
+    function render() {
+      const s = state.secondsLeft;
+      const m = Math.floor(s / 60).toString().padStart(2, '0');
+      const sec = (s % 60).toString().padStart(2, '0');
+      $time.textContent = `${m}:${sec}`;
+
+      // Ring
+      const progress = s / state.totalSeconds;
+      const offset = CIRC * (1 - progress);
+      $ring.style.strokeDashoffset = offset;
+
+      // Colors
+      const col = COLORS[state.mode];
+      $ring.style.stroke = col;
+      document.documentElement.style.setProperty('--accent', col);
+
+      // Label
+      $label.textContent = LABELS[state.mode];
+
+      // Button
+      $start.textContent = state.running ? 'PAUSE' : 'START';
+      $start.classList.toggle('running', state.running);
+
+      // Session count
+      const { sessionsPerLong } = state.settings;
+      const current = (state.pomodoroCount % sessionsPerLong) + 1;
+      $scount.textContent = `SESSION ${current} / ${sessionsPerLong}`;
+
+      // Dots
+      $dots.innerHTML = '';
+      for (let i = 0; i < sessionsPerLong; i++) {
+        const d = document.createElement('div');
+        d.className = 'dot';
+        if (i < state.pomodoroCount % sessionsPerLong) d.classList.add('done');
+        else if (i === state.pomodoroCount % sessionsPerLong && state.mode === 'work') d.classList.add('current');
+        $dots.appendChild(d);
+      }
+
+      // Stats
+      document.getElementById('stat-completed').textContent = state.pomodoroCount;
+      document.getElementById('stat-focus').textContent = state.focusMinutes + 'm';
+      document.getElementById('stat-streak').textContent = state.streak;
+
+      // Page title
+      document.title = `${m}:${sec} — Pomodoro`;
+    }
+
+    // ── Timer ──
+    function tick() {
+      if (state.secondsLeft <= 0) {
+        onTimerEnd();
+        return;
+      }
+      state.secondsLeft--;
+      render();
+    }
+
+    function onTimerEnd() {
+      clearInterval(state.interval);
+      state.running = false;
+      beep('end');
+
+      if (state.mode === 'work') {
+        state.pomodoroCount++;
+        state.focusMinutes += state.settings.work;
+        state.streak++;
+        const isLongBreak = state.pomodoroCount % state.settings.sessionsPerLong === 0;
+        showNotify(isLongBreak ? '🎉 Long break time!' : '☕ Short break time!');
+        if (state.settings.autostart) {
+          setTimeout(() => setMode(isLongBreak ? 'long' : 'short', true), 800);
+        } else {
+          setMode(isLongBreak ? 'long' : 'short', false);
+        }
+      } else {
+        showNotify('💪 Back to work!');
+        if (state.settings.autostart) {
+          setTimeout(() => setMode('work', true), 800);
+        } else {
+          setMode('work', false);
+        }
+      }
+    }
+
+    function startTimer() {
+      if (state.running) return;
+      state.running = true;
+      state.interval = setInterval(tick, 1000);
+      beep('tick');
+      render();
+    }
+
+    function pauseTimer() {
+      clearInterval(state.interval);
+      state.running = false;
+      render();
+    }
+
+    function resetTimer() {
+      clearInterval(state.interval);
+      state.running = false;
+      state.secondsLeft = state.totalSeconds;
+      render();
+    }
+
+    function setMode(mode, autostart = false) {
+      clearInterval(state.interval);
+      state.running = false;
+      state.mode = mode;
+      const mins = mode === 'work' ? state.settings.work
+                 : mode === 'short' ? state.settings.short
+                 : state.settings.long;
+      state.totalSeconds = mins * 60;
+      state.secondsLeft = state.totalSeconds;
+
+      // Update tabs
+      document.querySelectorAll('.mode-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.mode === mode);
+      });
+
+      render();
+
+      // Pulse
+      $time.classList.add('pulse');
+      setTimeout(() => $time.classList.remove('pulse'), 300);
+
+      if (autostart) startTimer();
+    }
+
+    // ── Controls ──
+    $start.addEventListener('click', () => {
+      if (state.running) pauseTimer();
+      else startTimer();
+    });
+
+    $reset.addEventListener('click', resetTimer);
+
+    $skip.addEventListener('click', () => {
+      clearInterval(state.interval);
+      state.running = false;
+      onTimerEnd();
+    });
+
+    document.querySelectorAll('.mode-tab').forEach(tab => {
+      tab.addEventListener('click', () => setMode(tab.dataset.mode));
+    });
+
+    // ── Settings toggle ──
+    $sPanelToggle.addEventListener('click', () => {
+      $sPanel.classList.toggle('open');
+      $sChevron.classList.toggle('open');
+    });
+
+    // ── Settings inputs ──
+    function makeAdjuster(id, key, min, max, displayId, onUpdate) {
+      const display = document.getElementById(displayId);
+      document.getElementById(`${id}-inc`).addEventListener('click', () => {
+        if (state.settings[key] < max) { state.settings[key]++; display.textContent = state.settings[key]; onUpdate(); }
+      });
+      document.getElementById(`${id}-dec`).addEventListener('click', () => {
+        if (state.settings[key] > min) { state.settings[key]--; display.textContent = state.settings[key]; onUpdate(); }
+      });
+    }
+
+    function updateWorkTimer() {
+      if (state.mode === 'work') { state.totalSeconds = state.settings.work * 60; state.secondsLeft = state.totalSeconds; }
+      render();
+    }
+    function updateShortTimer() {
+      if (state.mode === 'short') { state.totalSeconds = state.settings.short * 60; state.secondsLeft = state.totalSeconds; }
+      render();
+    }
+    function updateLongTimer() {
+      if (state.mode === 'long') { state.totalSeconds = state.settings.long * 60; state.secondsLeft = state.totalSeconds; }
+      render();
+    }
+
+    makeAdjuster('work', 'work', 1, 60, 'work-val', updateWorkTimer);
+    makeAdjuster('short', 'short', 1, 30, 'short-val', updateShortTimer);
+    makeAdjuster('long', 'long', 1, 60, 'long-val', updateLongTimer);
+    makeAdjuster('sessions', 'sessionsPerLong', 1, 8, 'sessions-val', () => render());
+
+    document.getElementById('toggle-autostart').addEventListener('change', e => {
+      state.settings.autostart = e.target.checked;
+    });
+    document.getElementById('toggle-sound').addEventListener('change', e => {
+      state.settings.sound = e.target.checked;
+    });
+
+    // ── Keyboard shortcuts ──
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space' && e.target === document.body) {
+        e.preventDefault();
+        if (state.running) pauseTimer(); else startTimer();
+      }
+      if (e.code === 'KeyR' && !e.ctrlKey) resetTimer();
+    });
+
+    // ── Init ──
+    render();
+  </script>
+</body>
+</html>
