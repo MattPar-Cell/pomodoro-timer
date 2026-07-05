@@ -168,7 +168,7 @@
       justify-content: center;
       padding: 0.6rem;
     }
-    .shape-btn {
+    .shape-btn, .scene-btn {
       background: transparent;
       border: 1px solid var(--glass-border);
       color: var(--muted);
@@ -185,14 +185,34 @@
       gap: 0.4rem;
       backdrop-filter: blur(8px);
     }
-    .shape-btn:hover { color: var(--text); border-color: var(--accent); }
-    .shape-btn.active {
+    .shape-btn:hover, .scene-btn:hover { color: var(--text); border-color: var(--accent); }
+    .shape-btn.active, .scene-btn.active {
       border-color: var(--accent);
       color: var(--accent);
       background: color-mix(in srgb, var(--accent) 12%, transparent);
       box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 25%, transparent);
     }
-    .shape-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+    .shape-btn svg, .scene-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+    .scene-glyph { font-size: 13px; line-height: 1; }
+
+    /* ── Ambient scenes (Math / Universe) ── */
+    #scene-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.8s ease;
+    }
+    body.scene-math #scene-canvas,
+    body.scene-universe #scene-canvas { opacity: 1; }
+
+    body.scene-universe { --bg-a: #030512; --bg-b: #0b0420; }
+    body.scene-universe.light { --bg-a: #dde6fa; --bg-b: #ece1f8; }
+    body.scene-math { --bg-a: #070d1c; --bg-b: #0d1026; }
+    body.scene-math.light { --bg-a: #e8edfa; --bg-b: #f2ecfa; }
 
     /* ── Timer wrapper ── */
     .timer-wrapper {
@@ -473,6 +493,7 @@
   </style>
 </head>
 <body class="shape-circle">
+  <canvas id="scene-canvas"></canvas>
   <div class="app">
 
     <!-- Header -->
@@ -501,6 +522,19 @@
       </button>
       <button class="shape-btn" data-shape="minimal">
         <svg viewBox="0 0 16 16"><line x1="2" y1="6" x2="14" y2="6"/><line x1="2" y1="10" x2="14" y2="10"/></svg>Minimal
+      </button>
+    </div>
+
+    <!-- Scene Switcher -->
+    <div class="shape-switcher glass">
+      <button class="scene-btn active" data-scene="off">
+        <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><line x1="4" y1="12" x2="12" y2="4"/></svg>No scene
+      </button>
+      <button class="scene-btn" data-scene="math">
+        <span class="scene-glyph">π</span>Math
+      </button>
+      <button class="scene-btn" data-scene="universe">
+        <span class="scene-glyph">✦</span>Universe
       </button>
     </div>
 
@@ -826,8 +860,352 @@
       if(e.code==='KeyR'&&!e.ctrlKey) resetTimer();
     });
 
+    // ══════════ AMBIENT SCENES ══════════
+    // Two full-screen canvas simulations rendered behind the glass UI:
+    //  • math     — graph grid, unit-circle→sine-wave machine, golden-angle
+    //               phyllotaxis, drifting symbols and famous identities
+    //  • universe — parallax starfield, nebulae, spiral galaxy with
+    //               differential rotation, ringed planet, meteors
+    const $sceneCanvas = document.getElementById('scene-canvas');
+    const sc = $sceneCanvas.getContext('2d');
+    let sceneName = localStorage.getItem('scene') || 'off';
+    let sceneRAF = null, lastFrameT = 0, simT = 0;
+    let SW = 0, SH = 0;
+
+    function sceneResize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      SW = window.innerWidth; SH = window.innerHeight;
+      $sceneCanvas.width = SW * dpr;
+      $sceneCanvas.height = SH * dpr;
+      sc.setTransform(dpr, 0, 0, dpr, 0, 0);
+      buildScene();
+    }
+
+    // ── Math scene state ──
+    const MATH_GLYPHS = ['π','φ','e','∞','∑','∫','√','Δ','θ','λ','∂','Ω','ζ','μ','≈','≠','∇','ε','ψ','ℵ'];
+    const MATH_EQS = [
+      'e^iπ + 1 = 0',
+      'a² + b² = c²',
+      'φ = (1+√5)/2 ≈ 1.618',
+      '∑ 1/n² = π²/6',
+      'E = mc²',
+      '∫ eˣ dx = eˣ + C',
+      '1  1  2  3  5  8  13  21  34',
+      'P(A|B) = P(B|A)·P(A) / P(B)',
+      'x = (−b ± √(b²−4ac)) / 2a',
+      'sin²θ + cos²θ = 1',
+      "f'(x) = lim  (f(x+h) − f(x)) / h",
+      '∇·E = ρ/ε₀'
+    ];
+    let mGlyphs = [], mEqs = [], mEqTimer = 0;
+
+    // ── Universe scene state ──
+    let uStars = [], uNebulae = [], uGalaxy = [], uMeteors = [], uMeteorTimer = 0;
+
+    function buildScene() {
+      if (sceneName === 'math') {
+        mGlyphs = [];
+        for (let i = 0; i < 22; i++) mGlyphs.push({
+          x: Math.random() * SW, y: Math.random() * SH,
+          s: 14 + Math.random() * 26,
+          g: MATH_GLYPHS[i % MATH_GLYPHS.length],
+          vy: 6 + Math.random() * 10,
+          ph: Math.random() * Math.PI * 2,
+          rot: (Math.random() - 0.5) * 0.6
+        });
+        mEqs = []; mEqTimer = 1.5;
+      } else if (sceneName === 'universe') {
+        uStars = [];
+        // three parallax layers: [count, base size, drift px/s]
+        [[170, 0.6, 2], [90, 1.0, 4], [40, 1.6, 7]].forEach((L, li) => {
+          for (let i = 0; i < L[0]; i++) uStars.push({
+            x: Math.random() * SW, y: Math.random() * SH,
+            r: L[1] * (0.5 + Math.random()),
+            spd: L[2],
+            ph: Math.random() * Math.PI * 2,
+            fr: 0.5 + Math.random() * 2,
+            li
+          });
+        });
+        const hues = [265, 200, 320, 225, 180];
+        uNebulae = [];
+        for (let i = 0; i < 5; i++) uNebulae.push({
+          x: Math.random() * SW, y: Math.random() * SH,
+          r: 180 + Math.random() * 260,
+          hue: hues[i],
+          dx: (Math.random() - 0.5) * 4, dy: (Math.random() - 0.5) * 3,
+          ph: Math.random() * 6
+        });
+        uGalaxy = [];
+        const arms = 3;
+        for (let a = 0; a < arms; a++) for (let i = 0; i < 110; i++) {
+          const f = i / 110;
+          uGalaxy.push({
+            r: (10 + f * 130) * (0.92 + Math.random() * 0.16),
+            a0: a * (Math.PI * 2 / arms) + f * 2.6 + (Math.random() - 0.5) * 0.35,
+            s: 0.4 + Math.random() * 1.1,
+            al: (1 - f) * 0.5 + 0.1,
+            warm: Math.random() < 0.25
+          });
+        }
+        uMeteors = []; uMeteorTimer = 3;
+      }
+    }
+
+    function drawMath(dt) {
+      sc.clearRect(0, 0, SW, SH);
+      const light = document.body.classList.contains('light');
+      const ink = light ? '43,32,94' : '168,196,255';
+      const accent = COLORS[state.mode];
+
+      // drifting graph-paper grid
+      const gs = 48, off = (simT * 4) % gs;
+      sc.strokeStyle = `rgba(${ink},${light ? 0.10 : 0.055})`;
+      sc.lineWidth = 1;
+      sc.beginPath();
+      for (let x = -off + gs; x < SW; x += gs) { sc.moveTo(x, 0); sc.lineTo(x, SH); }
+      for (let y = -off + gs; y < SH; y += gs) { sc.moveTo(0, y); sc.lineTo(SW, y); }
+      sc.stroke();
+
+      // golden-angle phyllotaxis (the sunflower pattern), slowly rotating
+      const px = SW - 150, py = 150, GA = Math.PI * (3 - Math.sqrt(5));
+      const rot = simT * 0.12;
+      for (let i = 0; i < 240; i++) {
+        const r = 5.2 * Math.sqrt(i);
+        if (r > 135) break;
+        const a = i * GA + rot;
+        const x = px + Math.cos(a) * r, y = py + Math.sin(a) * r;
+        const tw = 0.5 + 0.5 * Math.sin(simT * 2 - r * 0.08);
+        sc.fillStyle = `rgba(${ink},${(light ? 0.5 : 0.42) * (0.25 + 0.5 * tw) * (1 - r / 150)})`;
+        sc.beginPath(); sc.arc(x, y, 0.9 + r * 0.013, 0, Math.PI * 2); sc.fill();
+      }
+
+      // unit circle generating a sine wave along the bottom
+      const cx = 110, cy = SH - 130, r2 = 52;
+      sc.strokeStyle = `rgba(${ink},${light ? 0.35 : 0.28})`;
+      sc.lineWidth = 1.2;
+      sc.beginPath(); sc.arc(cx, cy, r2, 0, Math.PI * 2); sc.stroke();
+      sc.strokeStyle = `rgba(${ink},0.15)`;
+      sc.beginPath(); sc.moveTo(cx - r2 - 30, cy); sc.lineTo(SW - 40, cy); sc.stroke();
+
+      const th = simT * 1.1;
+      const dotX = cx + Math.cos(th) * r2, dotY = cy - Math.sin(th) * r2;
+      const waveX0 = cx + r2 + 34, waveX1 = SW - 50, k = 0.028;
+      sc.strokeStyle = accent;
+      sc.globalAlpha = light ? 0.55 : 0.7;
+      sc.lineWidth = 2;
+      sc.shadowColor = accent;
+      sc.shadowBlur = light ? 0 : 8;
+      sc.beginPath();
+      for (let x = waveX0; x <= waveX1; x += 3) {
+        const y = cy - Math.sin(th - (x - waveX0) * k) * r2;
+        x === waveX0 ? sc.moveTo(x, y) : sc.lineTo(x, y);
+      }
+      sc.stroke();
+      sc.shadowBlur = 0; sc.globalAlpha = 1;
+
+      sc.strokeStyle = `rgba(${ink},0.5)`;
+      sc.lineWidth = 1;
+      sc.beginPath(); sc.moveTo(cx, cy); sc.lineTo(dotX, dotY); sc.stroke();
+      sc.setLineDash([4, 4]);
+      sc.beginPath(); sc.moveTo(dotX, dotY); sc.lineTo(waveX0, cy - Math.sin(th) * r2); sc.stroke();
+      sc.setLineDash([]);
+      sc.fillStyle = accent;
+      sc.beginPath(); sc.arc(dotX, dotY, 4, 0, Math.PI * 2); sc.fill();
+      sc.beginPath(); sc.arc(waveX0, cy - Math.sin(th) * r2, 3, 0, Math.PI * 2); sc.fill();
+
+      // drifting symbols
+      sc.textAlign = 'center'; sc.textBaseline = 'middle';
+      for (const g of mGlyphs) {
+        g.y -= g.vy * dt;
+        if (g.y < -40) { g.y = SH + 40; g.x = Math.random() * SW; }
+        const a = (light ? 0.30 : 0.24) * (0.5 + 0.5 * Math.sin(simT * 0.8 + g.ph));
+        sc.save();
+        sc.translate(g.x, g.y);
+        sc.rotate(Math.sin(simT * 0.3 + g.ph) * g.rot);
+        sc.font = `${g.s}px 'Share Tech Mono', monospace`;
+        sc.fillStyle = `rgba(${ink},${a})`;
+        sc.fillText(g.g, 0, 0);
+        sc.restore();
+      }
+
+      // famous identities fading in and out at the edges
+      mEqTimer -= dt;
+      if (mEqTimer <= 0 && mEqs.length < 2) {
+        mEqs.push({
+          text: MATH_EQS[Math.floor(Math.random() * MATH_EQS.length)],
+          x: Math.random() < 0.5 ? SW * 0.16 : SW * 0.84,
+          y: SH * (0.15 + Math.random() * 0.45),
+          age: 0, life: 7
+        });
+        mEqTimer = 4 + Math.random() * 3;
+      }
+      sc.font = "17px 'Share Tech Mono', monospace";
+      mEqs = mEqs.filter(q => {
+        q.age += dt;
+        if (q.age >= q.life) return false;
+        const fade = Math.max(0, Math.min(q.age / 1.2, 1, (q.life - q.age) / 1.5));
+        sc.fillStyle = `rgba(${ink},${fade * (light ? 0.55 : 0.5)})`;
+        sc.fillText(q.text, q.x, q.y - q.age * 4);
+        return true;
+      });
+    }
+
+    function drawPlanet(light) {
+      const pr = 30;
+      const px = SW * 0.13, py = SH * 0.74 + Math.sin(simT * 0.1) * 6;
+      const ringCol = light ? 'rgba(90,80,140,0.5)' : 'rgba(210,190,230,0.55)';
+      sc.save();
+      sc.translate(px, py);
+      sc.rotate(-0.35);
+      sc.strokeStyle = ringCol; sc.lineWidth = 3;
+      sc.beginPath(); sc.ellipse(0, 0, pr * 1.9, pr * 0.55, 0, Math.PI, Math.PI * 2); sc.stroke();
+      const g = sc.createRadialGradient(-pr * 0.4, -pr * 0.4, pr * 0.1, 0, 0, pr);
+      if (light) { g.addColorStop(0, '#b9a6e8'); g.addColorStop(0.6, '#8a76c4'); g.addColorStop(1, '#4c3f78'); }
+      else { g.addColorStop(0, '#d8b08a'); g.addColorStop(0.55, '#a2684c'); g.addColorStop(1, '#2a1420'); }
+      sc.fillStyle = g;
+      sc.beginPath(); sc.arc(0, 0, pr, 0, Math.PI * 2); sc.fill();
+      // faint latitude bands
+      sc.save();
+      sc.beginPath(); sc.arc(0, 0, pr, 0, Math.PI * 2); sc.clip();
+      sc.globalAlpha = 0.16;
+      sc.strokeStyle = light ? '#3d3163' : '#5a2e22';
+      sc.lineWidth = 2.5;
+      for (const yy of [-0.45, -0.1, 0.3]) {
+        sc.beginPath();
+        sc.ellipse(0, pr * yy, pr, pr * 0.16, 0, 0, Math.PI * 2);
+        sc.stroke();
+      }
+      sc.restore();
+      sc.strokeStyle = ringCol; sc.lineWidth = 3;
+      sc.beginPath(); sc.ellipse(0, 0, pr * 1.9, pr * 0.55, 0, 0, Math.PI); sc.stroke();
+      sc.restore();
+    }
+
+    function drawUniverse(dt) {
+      sc.clearRect(0, 0, SW, SH);
+      const light = document.body.classList.contains('light');
+      sc.globalCompositeOperation = light ? 'source-over' : 'lighter';
+
+      // nebulae — slow drifting clouds of color
+      for (const n of uNebulae) {
+        n.x += n.dx * dt; n.y += n.dy * dt;
+        if (n.x < -n.r) n.x = SW + n.r; else if (n.x > SW + n.r) n.x = -n.r;
+        if (n.y < -n.r) n.y = SH + n.r; else if (n.y > SH + n.r) n.y = -n.r;
+        const pulse = 0.75 + 0.25 * Math.sin(simT * 0.15 + n.ph);
+        const rr = n.r * pulse;
+        const g = sc.createRadialGradient(n.x, n.y, 0, n.x, n.y, rr);
+        const A = light ? 0.10 : 0.085;
+        g.addColorStop(0, `hsla(${n.hue},70%,${light ? 45 : 60}%,${A})`);
+        g.addColorStop(0.5, `hsla(${n.hue},75%,${light ? 50 : 45}%,${A * 0.5})`);
+        g.addColorStop(1, `hsla(${n.hue},80%,40%,0)`);
+        sc.fillStyle = g;
+        sc.fillRect(n.x - rr, n.y - rr, rr * 2, rr * 2);
+      }
+
+      // parallax starfield with twinkle
+      const starCol = light ? '30,40,90' : '255,255,255';
+      for (const s of uStars) {
+        s.x -= s.spd * dt; s.y += s.spd * 0.3 * dt;
+        if (s.x < -4) { s.x = SW + 4; s.y = Math.random() * SH; }
+        if (s.y > SH + 4) s.y = -4;
+        const tw = 0.55 + 0.45 * Math.sin(simT * s.fr + s.ph);
+        sc.fillStyle = `rgba(${starCol},${(light ? 0.5 : 0.9) * tw * (0.35 + 0.25 * s.li)})`;
+        sc.beginPath(); sc.arc(s.x, s.y, s.r, 0, Math.PI * 2); sc.fill();
+        if (s.li === 2 && tw > 0.9) {
+          sc.strokeStyle = `rgba(${starCol},${0.35 * tw})`;
+          sc.lineWidth = 1;
+          sc.beginPath();
+          sc.moveTo(s.x - s.r * 3, s.y); sc.lineTo(s.x + s.r * 3, s.y);
+          sc.moveTo(s.x, s.y - s.r * 3); sc.lineTo(s.x, s.y + s.r * 3);
+          sc.stroke();
+        }
+      }
+
+      // spiral galaxy — inner stars orbit faster than outer (differential rotation)
+      const gx = SW * 0.8, gy = SH * 0.2;
+      const cg = sc.createRadialGradient(gx, gy, 0, gx, gy, 60);
+      cg.addColorStop(0, light ? 'rgba(90,70,160,0.35)' : 'rgba(255,240,220,0.5)');
+      cg.addColorStop(1, 'rgba(255,240,220,0)');
+      sc.fillStyle = cg;
+      sc.fillRect(gx - 60, gy - 60, 120, 120);
+      for (const p of uGalaxy) {
+        const a = p.a0 + simT * 0.55 / Math.sqrt(p.r * 0.06 + 1);
+        const x = gx + Math.cos(a) * p.r, y = gy + Math.sin(a) * p.r * 0.55;
+        const col = p.warm ? (light ? '110,80,60' : '255,220,180') : (light ? '60,60,130' : '190,210,255');
+        sc.fillStyle = `rgba(${col},${p.al * (light ? 0.7 : 1)})`;
+        sc.beginPath(); sc.arc(x, y, p.s, 0, Math.PI * 2); sc.fill();
+      }
+
+      sc.globalCompositeOperation = 'source-over';
+      drawPlanet(light);
+
+      // meteors
+      if (!light) sc.globalCompositeOperation = 'lighter';
+      uMeteorTimer -= dt;
+      if (uMeteorTimer <= 0) {
+        const ang = Math.PI * (0.62 + Math.random() * 0.22);
+        const sp = 420 + Math.random() * 260;
+        uMeteors.push({
+          x: SW * (0.25 + Math.random() * 0.7), y: SH * Math.random() * 0.3,
+          vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+          age: 0, life: 0.9 + Math.random() * 0.6
+        });
+        uMeteorTimer = 4 + Math.random() * 6;
+      }
+      uMeteors = uMeteors.filter(m => {
+        m.age += dt;
+        if (m.age >= m.life) return false;
+        m.x += m.vx * dt; m.y += m.vy * dt;
+        const f = 1 - m.age / m.life;
+        const tx = m.x - m.vx * 0.13, ty = m.y - m.vy * 0.13;
+        const g = sc.createLinearGradient(m.x, m.y, tx, ty);
+        const mc = light ? '50,60,120' : '255,255,255';
+        g.addColorStop(0, `rgba(${mc},${0.9 * f})`);
+        g.addColorStop(1, `rgba(${mc},0)`);
+        sc.strokeStyle = g;
+        sc.lineWidth = 2;
+        sc.lineCap = 'round';
+        sc.beginPath(); sc.moveTo(m.x, m.y); sc.lineTo(tx, ty); sc.stroke();
+        return true;
+      });
+      sc.globalCompositeOperation = 'source-over';
+    }
+
+    function sceneFrame(ts) {
+      const dt = Math.min((ts - lastFrameT) / 1000 || 0.016, 0.05);
+      lastFrameT = ts;
+      // scenes idle at a gentler pace while the timer is paused
+      const sdt = dt * (state.running ? 1 : 0.45);
+      simT += sdt;
+      if (sceneName === 'math') drawMath(sdt);
+      else if (sceneName === 'universe') drawUniverse(sdt);
+      sceneRAF = requestAnimationFrame(sceneFrame);
+    }
+
+    function applyScene(name) {
+      sceneName = name;
+      document.body.classList.toggle('scene-math', name === 'math');
+      document.body.classList.toggle('scene-universe', name === 'universe');
+      document.querySelectorAll('.scene-btn').forEach(b => b.classList.toggle('active', b.dataset.scene === name));
+      localStorage.setItem('scene', name);
+      if (name === 'off') {
+        if (sceneRAF) { cancelAnimationFrame(sceneRAF); sceneRAF = null; }
+        sc.clearRect(0, 0, SW, SH);
+        return;
+      }
+      sceneResize();
+      if (!sceneRAF) {
+        lastFrameT = performance.now();
+        sceneRAF = requestAnimationFrame(sceneFrame);
+      }
+    }
+    document.querySelectorAll('.scene-btn').forEach(b => b.addEventListener('click', () => applyScene(b.dataset.scene)));
+    window.addEventListener('resize', () => { if (sceneName !== 'off') sceneResize(); });
+
     applyShape(state.shape);
     applyTheme();
+    applyScene(sceneName);
     render();
   </script>
 </body>
