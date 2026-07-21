@@ -249,6 +249,51 @@
     .pet { text-align:center; font-size: 3rem; line-height:1; }
     .growbar { height: 8px; border-radius: 6px; background: var(--surface-2); overflow:hidden; margin-top:.3rem; }
     .growbar > i { display:block; height:100%; background: var(--long-color); width:0; transition: width .5s; }
+
+    /* ── BREAK ZONE (the playground) ─────────────────── */
+    #breakZone { position: fixed; inset: 0; z-index: 110; display: flex; flex-direction: column; background: rgba(6,6,20,.74); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    body.light #breakZone { background: rgba(228,222,244,.74); }
+    #breakZone.hidden { display: none !important; }
+    .bz-top { display:flex; align-items:center; gap:.6rem; padding:.8rem 1.1rem; border-radius:0; }
+    .bz-title { font-family: var(--mono); letter-spacing:1px; font-weight:700; }
+    .bz-body { flex:1; display:flex; min-height:0; }
+    .bz-menu { width: 210px; overflow-y:auto; padding:.6rem; display:flex; flex-direction:column; gap:.3rem; border-right:1px solid var(--glass-border); }
+    @media (max-width:720px){ .bz-menu{ width:60px; } .bz-menu .lbl{ display:none; } }
+    .bz-item { display:flex; align-items:center; gap:.55rem; padding:.5rem .6rem; border-radius:10px; background:var(--surface); border:1px solid transparent; font-size:.82rem; text-align:left; color:var(--text); }
+    .bz-item:hover { background:var(--surface-2); }
+    .bz-item.active { border-color: var(--accent); background: var(--surface-2); }
+    .bz-item .em { font-size:1.1rem; width:1.4em; text-align:center; }
+    .bz-stage { flex:1; display:flex; align-items:center; justify-content:center; padding:1.1rem; overflow:auto; position:relative; }
+    .bz-card { text-align:center; max-width: 640px; width:100%; }
+
+    .monk { font-size:3rem; line-height:1; }
+    .monk-bubble { font-style:italic; color:var(--muted); max-width:440px; margin:.5rem auto; min-height:2.4em; }
+    .breath-circle { width: 210px; height:210px; border-radius:50%; margin: 1rem auto; background: radial-gradient(circle at 40% 35%, rgba(255,255,255,.35), var(--accent)); box-shadow: 0 0 70px -10px var(--accent); display:flex; align-items:center; justify-content:center; font-size:2rem; transition: transform 4s ease-in-out; }
+    .breath-phase { font-family:var(--mono); letter-spacing:2px; font-size:1.05rem; min-height:1.5em; }
+
+    .bubble-grid { display:grid; grid-template-columns: repeat(12, 1fr); gap:6px; max-width:420px; margin:1rem auto 0; }
+    .bubble { aspect-ratio:1; border-radius:50%; background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.6), var(--short-color)); border:none; box-shadow: inset -2px -2px 5px rgba(0,0,0,.25); cursor:pointer; }
+    .bubble.popped { background: var(--surface); box-shadow: inset 2px 2px 6px rgba(0,0,0,.4); transform: scale(.86); }
+
+    .whack-grid { display:grid; grid-template-columns: repeat(3,90px); gap:12px; justify-content:center; margin:1rem auto 0; }
+    .hole { width:90px; height:90px; border-radius:50%; background: rgba(0,0,0,.28); display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+    .hole .mole { transform: translateY(110%); transition: transform .1s; font-size:2.6rem; cursor:pointer; user-select:none; }
+    .hole.up .mole { transform: translateY(0); }
+
+    .piano { display:flex; justify-content:center; }
+    .pkey { width:40px; height:140px; background:#f6f6f6; color:#555; border:1px solid #ccc; border-radius:0 0 7px 7px; display:flex; align-items:flex-end; justify-content:center; padding-bottom:7px; font-size:.7rem; cursor:pointer; user-select:none; }
+    .pkey.black { background:#222; color:#eee; height:90px; width:28px; margin:0 -15px; z-index:2; }
+    .pkey:active, .pkey.on { filter: brightness(.82); }
+
+    .simon { display:grid; grid-template-columns: repeat(2,110px); gap:10px; justify-content:center; }
+    .pad { width:110px; height:110px; border-radius:16px; opacity:.5; border:none; cursor:pointer; transition: opacity .1s; }
+    .pad.lit { opacity:1; box-shadow:0 0 34px currentColor; }
+
+    .eightball { width:200px; height:200px; border-radius:50%; background: radial-gradient(circle at 40% 30%, #333, #000); margin:1rem auto; display:flex; align-items:center; justify-content:center; }
+    .eightwin { width:112px; height:112px; border-radius:50%; background:#16265f; color:#cfe6ff; display:flex; align-items:center; justify-content:center; padding:10px; font-size:.72rem; text-align:center; line-height:1.3; }
+
+    .dvd-stage { position:relative; width:100%; height:340px; background:#05050f; border-radius:12px; overflow:hidden; margin-top:.6rem; }
+    .dvd-logo { position:absolute; font-size:2.2rem; will-change: transform; }
   </style>
 </head>
 <body>
@@ -264,6 +309,7 @@
       <button class="icon-btn" id="cmdBtn" title="Command palette (Ctrl/⌘ K)">⌘K</button>
       <button class="icon-btn" id="soundBtn" title="Ambient sound">🔈</button>
       <button class="icon-btn" id="pipBtn" title="Pop-out mini timer (Picture-in-Picture)">📺</button>
+      <button class="icon-btn" id="gameBtn" title="Break Zone playground (G)">🎮</button>
       <button class="icon-btn" id="zenBtn" title="Zen mode (Z)">🧘</button>
       <button class="icon-btn" id="fsBtn" title="Fullscreen (F)">⛶</button>
       <button class="icon-btn" id="themeBtn" title="Cycle theme (T)">🌗</button>
@@ -406,6 +452,7 @@
           <div class="field"><div class="row"><label style="margin:0;flex:1">Desktop notifications</label><label class="switch"><input type="checkbox" data-flag="notify"><span class="track"></span></label></div></div>
           <div class="field"><div class="row"><label style="margin:0;flex:1">Tick sound</label><label class="switch"><input type="checkbox" data-flag="tick"><span class="track"></span></label></div></div>
           <div class="field"><div class="row"><label style="margin:0;flex:1">Keep screen awake</label><label class="switch"><input type="checkbox" data-flag="wakelock"><span class="track"></span></label></div></div>
+          <div class="field"><div class="row"><label style="margin:0;flex:1">Open Break Zone on breaks 🎮</label><label class="switch"><input type="checkbox" data-flag="breakzone_auto"><span class="track"></span></label></div></div>
           <div class="field"><div class="row"><label style="margin:0;flex:1">Sync to backend API</label><label class="switch"><input type="checkbox" data-flag="sync"><span class="track"></span></label></div></div>
           <hr class="split" />
           <div class="field"><label>Accent colour</label><div class="swatch-row" id="swatches"></div></div>
@@ -449,6 +496,21 @@
     <div class="foot" id="footer"></div>
   </div>
 
+  <!-- ── BREAK ZONE overlay ─────────────────────── -->
+  <div id="breakZone" class="hidden">
+    <div class="bz-top glass">
+      <span class="bz-title">🎮 BREAK ZONE</span>
+      <span class="mini-note" id="bzMode"></span>
+      <div class="grow"></div>
+      <span class="mini-note" id="bzTimer" style="font-family:var(--mono)"></span>
+      <button class="btn" id="bzBackToTimer">✕ Back to timer</button>
+    </div>
+    <div class="bz-body">
+      <nav class="bz-menu" id="bzMenu"></nav>
+      <div class="bz-stage" id="bzStage"></div>
+    </div>
+  </div>
+
   <div id="toasts"></div>
 
   <script>
@@ -473,7 +535,7 @@
       auto_start: false, sound_enabled: true, notify: false, tick: false,
       wakelock: false, sync: false, theme: 'dark', accent: '#e05c3a',
       technique: 'classic', scene: 'universe', ambient: 'off', ambientVol: 45,
-      alarm: 'chime', lang: 'en'
+      alarm: 'chime', lang: 'en', breakzone_auto: true
     },
     sessions: [],            // {mode,duration_min,completed,note,ts}
     tasks: [],               // {id,name,done,est,spent}
@@ -645,7 +707,9 @@
     }
     function setAmbientVol(v) { if (ambientGain) ambientGain.gain.value = (v/100)*0.5; }
 
-    return { playAlarm, tick, fanfare, startAmbient, stopAmbient, setAmbientVol, ensure, ALARMS };
+    const pad  = (f, d=1)   => tone(f, ensure().currentTime, d, 'sine', 0.08);
+    const note = (f, d=0.4) => tone(f, ensure().currentTime, d, 'triangle', 0.18);
+    return { playAlarm, tick, fanfare, startAmbient, stopAmbient, setAmbientVol, ensure, ALARMS, pad, note };
   })();
 
   /* ========================================================================
@@ -973,6 +1037,11 @@
     renderAll();
     setMode(next, S().auto_start);
     if (!S().auto_start) toast(next==='work' ? 'Ready to focus 🍅' : 'Break time ☕');
+    // Break Zone: pop the playground open on breaks, close it when focus returns
+    if (typeof BreakZone !== 'undefined') {
+      if (next === 'work') BreakZone.close();
+      else if (S().breakzone_auto) BreakZone.open(next === 'long' ? 'breathe' : undefined);
+    }
   }
 
   /* ========================================================================
@@ -1003,6 +1072,7 @@
     const t = activeTask();
     $('#nowTask').innerHTML = t ? `Working on <b>${escapeHtml(t.name)}</b> · ${t.spent}/${t.est} 🍅` : 'No active task — pick one from the list →';
     updatePiP(timeStr);
+    const bt = document.getElementById('bzTimer'); if (bt) bt.textContent = timeStr + ' · ' + $('#modeLabel').textContent;
   }
   function renderAll() {
     render(); renderTasks(); renderStats(); renderHistory(); renderAchievements(); renderGarden(); renderFooter();
@@ -1647,8 +1717,11 @@
   // keyboard shortcuts
   addEventListener('keydown', e=>{
     if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); cmdOverlay?closeCmd():openCmd(); return; }
+    // While the Break Zone playground is open, let its games own the keyboard (Esc closes it).
+    if (typeof BreakZone!=='undefined' && BreakZone.isOpen()) { if (e.key==='Escape') BreakZone.close(); return; }
     const typing = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
     if (typing) return;
+    if (e.key.toLowerCase()==='g') { BreakZone.open(); return; }
     switch(e.key.toLowerCase()){
       case ' ': e.preventDefault(); toggleStartPause(); break;
       case 'r': resetTimer(); break;
@@ -1686,6 +1759,309 @@
     try { replPrint('forth›  : hi 72 emit 105 emit ;  hi   →  '+Forth.run(': hi 72 emit 105 emit ; hi')); } catch(e){}
     console.log('%cPOMODORO∞','color:#e05c3a;font-size:20px;font-weight:bold','loaded. WASM add(2,2)=',Wasm.add(2,2));
   }
+  /* ========================================================================
+     BREAK ZONE — a whole playground for your breaks. Doodle, Snake, an AI
+     monk who guides your breathing and dispenses procedurally-generated
+     koans, and a pile of gloriously pointless mini-games.
+     ======================================================================== */
+
+  // ── The "AI" monk: local, dependency-free wisdom + oracle generators ──
+  const MONK = (() => {
+    const pick = a => a[(Math.random()*a.length)|0];
+    const A = ['The tomato','A quiet mind','One who rushes','The wise coder','Your breath','The empty inbox','A single pomodoro','The restless thumb','Stillness','The unopened tab','The patient cursor','A finished task'];
+    const B = ['ripens','reveals','forgets','becomes','holds','releases','outlasts','waters','carries','forgives','mirrors','outshines'];
+    const C = ['the whole harvest','a thousand tabs','the mountain of tasks','nothing, and everything','the seed of focus','tomorrow’s calm','the unread notification','its own shadow','the next breath','the looming deadline','a well-timed pause','the sound of one keyboard typing'];
+    const D = ['— begin again.','So it is.','This too is practice.','Do not grasp.','Even the cursor blinks to rest.','Let it pass like a meeting that could have been an email.','Breathe.','','.'];
+    const EIGHT = ['It is certain','Focus, then decide','The monk nods slowly','Ask again after a break','Doubtful','Without a doubt','My sources say no','Concentrate and ask again','Signs point to yes','Very likely','Do not count on it','The tomato says yes','Outlook: caffeinated','The path is unclear; rest first'];
+    const koan  = () => `${pick(A)} ${pick(B)} ${pick(C)} ${pick(D)}`.trim();
+    const eight = () => pick(EIGHT);
+    const tone  = (f,d) => Audio2.pad(f, Math.min(d,3));
+    return { koan, eight, tone };
+  })();
+
+  // ── Activity: AI monk guided breathing ──
+  function mountBreathe(stage) {
+    const patterns = {
+      box:      { name:'Box · 4·4·4·4', seq:[['Breathe in',4,1.35],['Hold',4,1.35],['Breathe out',4,.8],['Hold',4,.8]] },
+      '478':    { name:'4·7·8 · deep calm', seq:[['Breathe in',4,1.35],['Hold',7,1.35],['Breathe out',8,.8]] },
+      coherent: { name:'Coherent · 5.5', seq:[['Breathe in',5.5,1.35],['Breathe out',5.5,.8]] },
+      calm:     { name:'Calm · 5·5', seq:[['Breathe in',5,1.35],['Breathe out',5,.8]] },
+    };
+    let pkey = S()._breathPattern || 'box';
+    stage.innerHTML = `<div class="bz-card">
+      <div class="monk" id="mk">🧘</div>
+      <div class="monk-bubble" id="mkSay"></div>
+      <div class="breath-circle" id="bc">🌬️</div>
+      <div class="breath-phase" id="bph">press start, follow the circle</div>
+      <div class="mini-note" id="bcyc">0 cycles</div>
+      <div style="margin-top:1rem;display:flex;gap:.4rem;justify-content:center;flex-wrap:wrap">
+        <select id="bpat" style="min-width:150px"></select>
+        <button class="btn primary" id="bstart">▶ Start</button>
+        <button class="btn" id="bwis">🔮 wisdom</button>
+      </div></div>`;
+    const q = s => stage.querySelector(s);
+    q('#bpat').innerHTML = Object.entries(patterns).map(([k,v])=>`<option value="${k}" ${k===pkey?'selected':''}>${v.name}</option>`).join('');
+    const bc=q('#bc'), bph=q('#bph'), bcyc=q('#bcyc'), say=q('#mkSay');
+    say.textContent = '“'+MONK.koan()+'”';
+    let timers=[], running=false, cycles=0, idx=0;
+    const clearAll = () => { timers.forEach(clearTimeout); timers=[]; };
+    function step() {
+      if (!running) return;
+      const seq = patterns[pkey].seq; const [label,secs,scale] = seq[idx];
+      bph.textContent = label+' · '+secs+'s';
+      bc.style.transitionDuration = secs+'s';
+      bc.style.transform = 'scale('+scale+')';
+      if (label.startsWith('Breathe in')) MONK.tone(330, secs);
+      else if (label.startsWith('Breathe out')) MONK.tone(220, secs);
+      timers.push(setTimeout(()=>{ idx=(idx+1)%seq.length; if(idx===0){ cycles++; bcyc.textContent=cycles+' cycles'; if(cycles%3===0) say.textContent='“'+MONK.koan()+'”'; } step(); }, secs*1000));
+    }
+    function start() { if(running){ stop(); return; } running=true; q('#bstart').innerHTML='⏸ Pause'; idx=0; step(); }
+    function stop() { running=false; clearAll(); bc.style.transitionDuration='1s'; bc.style.transform='scale(1)'; bph.textContent='paused'; const b=q('#bstart'); if(b)b.innerHTML='▶ Start'; }
+    q('#bstart').onclick = start;
+    q('#bpat').onchange = e => { pkey=e.target.value; S()._breathPattern=pkey; save(); stop(); };
+    q('#bwis').onclick = () => { say.textContent='“'+MONK.koan()+'”'; MONK.tone(300,1); };
+    return () => stop();
+  }
+
+  // ── Activity: doodle pad ──
+  function mountDoodle(stage) {
+    stage.innerHTML = `<div class="bz-card">
+      <div style="display:flex;gap:.5rem;justify-content:center;align-items:center;flex-wrap:wrap;margin-bottom:.5rem">
+        <span class="swatch-row" id="dColors"></span>
+        <input type="range" id="dSize" min="1" max="40" value="6" title="brush size" />
+        <button class="btn" id="dErase">🩹 Eraser</button>
+        <button class="btn" id="dClear">🗑 Clear</button>
+        <button class="btn" id="dSave">⬇ PNG</button>
+      </div>
+      <canvas id="dCanvas" width="560" height="360" style="background:#fff;border-radius:12px;max-width:92vw;touch-action:none;cursor:crosshair"></canvas>
+    </div>`;
+    const q=s=>stage.querySelector(s);
+    const cv=q('#dCanvas'), ctx=cv.getContext('2d'); ctx.lineCap='round'; ctx.lineJoin='round';
+    let color='#e05c3a', size=6, drawing=false, erase=false, last=null;
+    const cols=['#e05c3a','#3ab8e0','#3ae07a','#ffd166','#c77dff','#222','#ff5470','#00d1b2'];
+    q('#dColors').innerHTML = cols.map(c=>`<span class="swatch ${c==='#e05c3a'?'on':''}" style="background:${c}" data-c="${c}"></span>`).join('');
+    stage.querySelectorAll('#dColors .swatch').forEach(s=>s.onclick=()=>{ color=s.dataset.c; erase=false; stage.querySelectorAll('#dColors .swatch').forEach(x=>x.classList.toggle('on',x===s)); });
+    q('#dSize').oninput = e => size=+e.target.value;
+    q('#dErase').onclick = e => { erase=!erase; e.target.style.background = erase?'var(--accent)':''; };
+    q('#dClear').onclick = () => ctx.clearRect(0,0,cv.width,cv.height);
+    q('#dSave').onclick = () => { const a=document.createElement('a'); a.download='pomodoro-doodle.png'; a.href=cv.toDataURL(); a.click(); };
+    const pos = e => { const r=cv.getBoundingClientRect(); return { x:(e.clientX-r.left)*cv.width/r.width, y:(e.clientY-r.top)*cv.height/r.height }; };
+    const start = e => { drawing=true; last=pos(e); e.preventDefault(); };
+    const move  = e => { if(!drawing)return; const p=pos(e); ctx.strokeStyle=erase?'#fff':color; ctx.lineWidth=erase?size*2:size; ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; e.preventDefault(); };
+    const end = () => drawing=false;
+    cv.addEventListener('pointerdown',start); cv.addEventListener('pointermove',move); addEventListener('pointerup',end);
+    return () => removeEventListener('pointerup',end);
+  }
+
+  // ── Activity: Snake ──
+  function mountSnake(stage) {
+    stage.innerHTML = `<div class="bz-card">
+      <div class="mini-note" id="skScore">Score 0 · arrows / WASD</div>
+      <canvas id="skCanvas" width="400" height="400" style="background:rgba(0,0,0,.3);border-radius:12px;max-width:88vw;touch-action:none;margin-top:.5rem"></canvas>
+      <div id="skOver" style="min-height:1.6em"></div>
+      <div style="margin-top:.4rem"><button class="btn" id="skRestart">↺ Restart</button></div></div>`;
+    const q=s=>stage.querySelector(s);
+    const cv=q('#skCanvas'), ctx=cv.getContext('2d'), N=20, C=cv.width/N;
+    let snake, dir, nextDir, food, score, alive, loop;
+    const rndFood = () => { let f; do { f={x:(Math.random()*N)|0, y:(Math.random()*N)|0}; } while(snake && snake.some(s=>s.x===f.x&&s.y===f.y)); return f; };
+    function reset(){ snake=[{x:10,y:10},{x:9,y:10},{x:8,y:10}]; dir={x:1,y:0}; nextDir=dir; food=rndFood(); score=0; alive=true; q('#skOver').innerHTML=''; q('#skScore').textContent='Score 0 · arrows / WASD'; }
+    function tick(){ if(!alive)return; dir=nextDir; const head={x:(snake[0].x+dir.x+N)%N, y:(snake[0].y+dir.y+N)%N};
+      if (snake.some(s=>s.x===head.x&&s.y===head.y)) { alive=false; q('#skOver').innerHTML='<div class="breath-phase">💀 Game over — score '+score+'</div>'; Audio2.playAlarm('digital'); return; }
+      snake.unshift(head);
+      if (head.x===food.x&&head.y===food.y) { score++; q('#skScore').textContent='Score '+score; food=rndFood(); Audio2.note(600,0.1); } else snake.pop();
+      draw(); }
+    function draw(){ ctx.clearRect(0,0,cv.width,cv.height); const acc=getComputedStyle(document.body).getPropertyValue('--accent').trim();
+      snake.forEach((s,i)=>{ ctx.fillStyle = i===0?acc:'#3ae07a'; ctx.fillRect(s.x*C+1,s.y*C+1,C-2,C-2); });
+      ctx.font=C+'px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🍅', food.x*C+C/2, food.y*C+C/2); }
+    const key = e => { const m={arrowup:[0,-1],w:[0,-1],arrowdown:[0,1],s:[0,1],arrowleft:[-1,0],a:[-1,0],arrowright:[1,0],d:[1,0]}[e.key.toLowerCase()];
+      if (m && (m[0]!==-dir.x || m[1]!==-dir.y)) { nextDir={x:m[0],y:m[1]}; e.preventDefault(); } };
+    addEventListener('keydown', key);
+    q('#skRestart').onclick = () => { reset(); draw(); };
+    reset(); draw(); loop=setInterval(tick,120);
+    return () => { clearInterval(loop); removeEventListener('keydown', key); };
+  }
+
+  // ── Activity: bubble wrap ──
+  function mountBubbles(stage) {
+    const N=96;
+    stage.innerHTML = `<div class="bz-card"><div class="mini-note">Pop them all 🫧</div>
+      <div class="bubble-grid" id="bwGrid"></div>
+      <div style="margin-top:.6rem"><button class="btn" id="bwReset">↺ Fresh sheet</button></div></div>`;
+    const grid=stage.querySelector('#bwGrid');
+    function build(){ grid.innerHTML=''; let popped=0;
+      for (let i=0;i<N;i++){ const b=document.createElement('button'); b.className='bubble';
+        b.onclick=()=>{ if(b.classList.contains('popped'))return; b.classList.add('popped'); Audio2.ensure(); Audio2.note(400+Math.random()*500,0.05); if(++popped===N){ toast('🎉 Whole sheet popped!'); confetti(); } };
+        grid.appendChild(b); } }
+    stage.querySelector('#bwReset').onclick = build; build();
+    return () => {};
+  }
+
+  // ── Activity: Whack-a-Tomato ──
+  function mountWhack(stage) {
+    stage.innerHTML = `<div class="bz-card"><div class="mini-note" id="wkInfo">Score 0 · 30s — bonk the tomatoes!</div>
+      <div class="whack-grid" id="wkGrid"></div>
+      <div style="margin-top:.6rem"><button class="btn primary" id="wkStart">▶ Start</button></div></div>`;
+    const info=stage.querySelector('#wkInfo'), grid=stage.querySelector('#wkGrid'), holes=[];
+    let running=false, score=0, left=30, tId, popId;
+    for (let i=0;i<9;i++){ const h=document.createElement('div'); h.className='hole'; h.innerHTML='<div class="mole">🍅</div>';
+      h.querySelector('.mole').onclick=()=>{ if(running && h.classList.contains('up')){ score++; info.textContent='Score '+score+' · '+left+'s'; h.classList.remove('up'); Audio2.note(700,0.08); } };
+      grid.appendChild(h); holes.push(h); }
+    function start(){ if(running)return; running=true; score=0; left=30; info.textContent='Score 0 · 30s';
+      tId=setInterval(()=>{ if(--left<=0){ stop(); } else info.textContent='Score '+score+' · '+left+'s'; },1000);
+      popId=setInterval(()=>{ holes.forEach(h=>h.classList.remove('up')); holes[(Math.random()*9)|0].classList.add('up'); },720); }
+    function stop(){ running=false; clearInterval(tId); clearInterval(popId); holes.forEach(h=>h.classList.remove('up')); info.textContent='⏱ Time! Final score '+score; if(score>0)confetti(); }
+    stage.querySelector('#wkStart').onclick = start;
+    return () => stop();
+  }
+
+  // ── Activity: zen piano ──
+  function mountPiano(stage) {
+    const notes=[['C',261.63,0],['C#',277.18,1],['D',293.66,0],['D#',311.13,1],['E',329.63,0],['F',349.23,0],['F#',369.99,1],['G',392,0],['G#',415.3,1],['A',440,0],['A#',466.16,1],['B',493.88,0],['C',523.25,0]];
+    stage.innerHTML = `<div class="bz-card"><div class="mini-note">Click keys, or play A S D F G H J K L on your keyboard 🎹</div>
+      <div class="piano" id="pno" style="margin-top:1rem"></div></div>`;
+    const pno=stage.querySelector('#pno');
+    notes.forEach(n=>{ const k=document.createElement('div'); k.className='pkey'+(n[1]?' black':''); k.textContent=n[0]; k.onpointerdown=()=>{ Audio2.note(n[1],0.5); k.classList.add('on'); setTimeout(()=>k.classList.remove('on'),140); }; pno.appendChild(k); });
+    const white=notes.filter(n=>!n[1]); const map='asdfghjkl'.split('');
+    const key = e => { if(e.repeat)return; const idx=map.indexOf(e.key.toLowerCase()); if(idx>=0 && white[idx]) Audio2.note(white[idx][1],0.5); };
+    addEventListener('keydown', key);
+    return () => removeEventListener('keydown', key);
+  }
+
+  // ── Activity: Simon (memory tones) ──
+  function mountSimon(stage) {
+    stage.innerHTML = `<div class="bz-card"><div class="mini-note" id="smInfo">Watch, then repeat the sequence.</div>
+      <div class="simon" id="smPads" style="margin-top:1rem">
+        <button class="pad" data-i="0" style="background:#3ae07a;color:#3ae07a"></button>
+        <button class="pad" data-i="1" style="background:#3ab8e0;color:#3ab8e0"></button>
+        <button class="pad" data-i="2" style="background:#ffd166;color:#ffd166"></button>
+        <button class="pad" data-i="3" style="background:#ff5470;color:#ff5470"></button>
+      </div>
+      <div style="margin-top:.6rem"><button class="btn primary" id="smStart">▶ Start</button></div></div>`;
+    const freqs=[329.63,392,440,523.25], pads=[...stage.querySelectorAll('.pad')], info=stage.querySelector('#smInfo');
+    let seq=[], input=[], accepting=false, timers=[];
+    const clearAll=()=>{ timers.forEach(clearTimeout); timers=[]; };
+    const flash = i => { pads[i].classList.add('lit'); Audio2.note(freqs[i],0.35); timers.push(setTimeout(()=>pads[i].classList.remove('lit'),320)); };
+    function playSeq(){ accepting=false; let t=200; seq.forEach(i=>{ timers.push(setTimeout(()=>flash(i), t)); t+=600; }); timers.push(setTimeout(()=>{ accepting=true; input=[]; }, t+300)); }
+    function next(){ seq.push((Math.random()*4)|0); info.textContent='Level '+seq.length+' — watch'; playSeq(); }
+    pads.forEach(p=>p.onclick=()=>{ if(!accepting)return; const i=+p.dataset.i; flash(i); input.push(i); const k=input.length-1;
+      if (input[k]!==seq[k]) { info.textContent='❌ Wrong! You reached level '+(seq.length-1); accepting=false; Audio2.playAlarm('digital'); return; }
+      if (input.length===seq.length) { accepting=false; info.textContent='✅ Level '+seq.length+' cleared'; timers.push(setTimeout(next,750)); } });
+    stage.querySelector('#smStart').onclick = () => { clearAll(); seq=[]; input=[]; next(); };
+    return () => clearAll();
+  }
+
+  // ── Activity: monk oracle / magic 8-ball ──
+  function mountOracle(stage) {
+    stage.innerHTML = `<div class="bz-card">
+      <div class="monk" style="font-size:2.4rem">🧙</div>
+      <div class="eightball" id="ob"><div class="eightwin" id="obw">ask…</div></div>
+      <input id="obq" class="repl-in" placeholder="Ask the monk anything…" style="width:min(360px,80vw);text-align:center" />
+      <div style="margin-top:.6rem"><button class="btn primary" id="obAsk">🔮 Consult</button> <button class="btn" id="obKoan">📜 Koan</button></div>
+      <div class="monk-bubble" id="obSay" style="margin-top:.8rem"></div></div>`;
+    const q=s=>stage.querySelector(s), win=q('#obw');
+    q('#obAsk').onclick = () => { win.textContent=MONK.eight(); q('#ob').animate([{transform:'rotate(-7deg)'},{transform:'rotate(7deg)'},{transform:'rotate(0)'}],{duration:400}); Audio2.note(300,0.2); };
+    q('#obKoan').onclick = () => { q('#obSay').textContent='“'+MONK.koan()+'”'; MONK.tone(280,1); };
+    q('#obq').addEventListener('keydown', e=>{ if(e.key==='Enter') q('#obAsk').click(); });
+    return () => {};
+  }
+
+  // ── Activity: tomato clicker (idle nonsense) ──
+  function mountClicker(stage) {
+    stage.innerHTML = `<div class="bz-card">
+      <div class="mini-note" id="clN">Tomatoes: 0</div>
+      <button id="clBtn" style="font-size:6rem;background:none;border:none;line-height:1;margin:1rem;cursor:pointer">🍅</button>
+      <div class="mini-note">+1 per click · auto-harvest <b id="clAuto">0</b>/s</div>
+      <div style="margin-top:.6rem"><button class="btn" id="clBuy">Hire farmer 🧑‍🌾 (10 🍅)</button></div></div>`;
+    const q=s=>stage.querySelector(s);
+    let n=DB._clicker||0, auto=DB._clickerAuto||0;
+    const upd=()=>{ q('#clN').textContent='Tomatoes: '+n; q('#clAuto').textContent=auto; DB._clicker=n; DB._clickerAuto=auto; };
+    q('#clBtn').onclick=()=>{ n++; upd(); const b=q('#clBtn'); b.animate([{transform:'scale(1)'},{transform:'scale(1.25)'},{transform:'scale(1)'}],{duration:150}); };
+    q('#clBuy').onclick=()=>{ if(n>=10){ n-=10; auto++; upd(); toast('🧑‍🌾 hired!'); } else toast('Need 10 🍅'); };
+    const iv=setInterval(()=>{ if(auto){ n+=auto; upd(); } },1000); upd();
+    return () => { clearInterval(iv); save(); };
+  }
+
+  // ── Activity: bouncing tomato screensaver (corner hits!) ──
+  function mountDVD(stage) {
+    stage.innerHTML = `<div class="bz-card" style="max-width:720px"><div class="mini-note" id="dvN">Corner hits: 0 — will it ever hit the corner?</div>
+      <div class="dvd-stage" id="dvS"><div class="dvd-logo" id="dvL">🍅</div></div></div>`;
+    const S2=stage.querySelector('#dvS'), L=stage.querySelector('#dvL'), info=stage.querySelector('#dvN');
+    let x=40,y=40,vx=130,vy=95,corners=0,raf,last=performance.now();
+    function frame(t){ const dt=Math.min((t-last)/1000,0.05); last=t; const w=S2.clientWidth-36, h=S2.clientHeight-36;
+      x+=vx*dt; y+=vy*dt; let bx=false,by=false;
+      if(x<=0){x=0;vx*=-1;bx=true;} if(x>=w){x=w;vx*=-1;bx=true;} if(y<=0){y=0;vy*=-1;by=true;} if(y>=h){y=h;vy*=-1;by=true;}
+      if(bx||by){ L.style.filter='hue-rotate('+((Math.random()*360)|0)+'deg)'; }
+      if(bx&&by){ corners++; info.textContent='Corner hits: '+corners+' 🎉 legendary'; confetti(); Audio2.playAlarm('arcade'); }
+      L.style.transform='translate('+x+'px,'+y+'px)'; raf=requestAnimationFrame(frame); }
+    raf=requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }
+
+  // ── Activity: rock-paper-scissors vs the monk ──
+  function mountRPS(stage) {
+    stage.innerHTML = `<div class="bz-card"><div class="monk" style="font-size:2.6rem" id="rpM">🧘</div>
+      <div class="breath-phase" id="rpR">choose your weapon</div>
+      <div class="mini-note" id="rpS">You 0 · Monk 0</div>
+      <div style="margin-top:1rem;display:flex;gap:.5rem;justify-content:center">
+        <button class="btn" data-m="✊">✊</button><button class="btn" data-m="✋">✋</button><button class="btn" data-m="✌️">✌️</button>
+      </div></div>`;
+    const q=s=>stage.querySelector(s); let you=0, monk=0; const beats={'✊':'✌️','✋':'✊','✌️':'✋'};
+    stage.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ const opts=['✊','✋','✌️'], m=opts[(Math.random()*3)|0], yo=b.dataset.m;
+      let r; if(yo===m)r='Tie 🤝'; else if(beats[yo]===m){r='You win! 🎉';you++;} else{r='Monk wins 🧘';monk++;}
+      q('#rpM').textContent=m; q('#rpR').textContent=yo+' vs '+m+' — '+r; q('#rpS').textContent='You '+you+' · Monk '+monk; Audio2.note(400,0.15); });
+    return () => {};
+  }
+
+  // ── The Break Zone controller ──
+  const BreakZone = (() => {
+    const overlay=$('#breakZone'), menu=$('#bzMenu'), stage=$('#bzStage');
+    const activities = [
+      { id:'breathe', em:'🧘', name:'AI Monk · breathe', mount:mountBreathe },
+      { id:'doodle',  em:'🎨', name:'Doodle pad',        mount:mountDoodle  },
+      { id:'snake',   em:'🐍', name:'Snake',             mount:mountSnake   },
+      { id:'bubbles', em:'🫧', name:'Bubble wrap',       mount:mountBubbles },
+      { id:'whack',   em:'🍅', name:'Whack-a-Tomato',    mount:mountWhack   },
+      { id:'piano',   em:'🎹', name:'Zen piano',         mount:mountPiano   },
+      { id:'simon',   em:'🟢', name:'Simon says',        mount:mountSimon   },
+      { id:'oracle',  em:'🎱', name:'Monk oracle',       mount:mountOracle  },
+      { id:'clicker', em:'👆', name:'Tomato clicker',    mount:mountClicker },
+      { id:'dvd',     em:'📺', name:'Bouncing tomato',   mount:mountDVD     },
+      { id:'rps',     em:'✊', name:'RPS vs monk',        mount:mountRPS     },
+    ];
+    let cleanup=null, current=null, open=false;
+    function renderMenu(){ menu.innerHTML = activities.map(a=>`<button class="bz-item ${a.id===current?'active':''}" data-id="${a.id}"><span class="em">${a.em}</span><span class="lbl">${a.name}</span></button>`).join('');
+      menu.querySelectorAll('.bz-item').forEach(b=>b.onclick=()=>select(b.dataset.id)); }
+    function select(id){ if(cleanup){ try{cleanup();}catch{} cleanup=null; } current=id;
+      const a=activities.find(x=>x.id===id)||activities[0]; stage.innerHTML='';
+      try { cleanup=a.mount(stage)||null; } catch(e){ stage.innerHTML='<div class="mini-note">activity error: '+e.message+'</div>'; }
+      renderMenu(); }
+    function openZone(id){ open=true; overlay.classList.remove('hidden');
+      $('#bzMode').textContent = ({work:'',short:'short break ☕',long:'long break 🛋'})[state.mode]||'free play';
+      select(id || current || S()._lastActivity || 'breathe'); render(); }
+    function closeZone(){ open=false; if(cleanup){ try{cleanup();}catch{} cleanup=null; } overlay.classList.add('hidden'); if(current){ S()._lastActivity=current; save(); } }
+    $('#bzBackToTimer').onclick = closeZone;
+    return { open:openZone, close:closeZone, isOpen:()=>open };
+  })();
+  $('#gameBtn').onclick = () => BreakZone.open();
+
+  // extra command-palette entries for the playground
+  COMMANDS.push(
+    { ico:'🎮', name:'Open Break Zone playground', key:'G', run:()=>BreakZone.open() },
+    { ico:'🧘', name:'AI Monk guided breathing', run:()=>BreakZone.open('breathe') },
+    { ico:'🐍', name:'Play Snake', run:()=>BreakZone.open('snake') },
+    { ico:'🎨', name:'Open doodle pad', run:()=>BreakZone.open('doodle') },
+    { ico:'🎱', name:'Consult the monk oracle', run:()=>BreakZone.open('oracle') },
+  );
+
+  // ── Konami code → tomato storm (pure stupid, as requested) ──
+  const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a']; let kbuf=[];
+  addEventListener('keydown', e=>{ kbuf.push(e.key.length===1?e.key.toLowerCase():e.key); kbuf=kbuf.slice(-KONAMI.length);
+    if (KONAMI.join()===kbuf.join()){ tomatoRain(); toast('🍅🌧 KONAMI! Enjoy the tomato storm.'); } });
+  function tomatoRain(){ for(let i=0;i<44;i++){ const t=document.createElement('div'); t.textContent=Math.random()<0.1?'🍕':'🍅';
+    t.style.cssText='position:fixed;z-index:200;pointer-events:none;top:-40px;font-size:'+(18+Math.random()*26)+'px;left:'+(Math.random()*100)+'vw';
+    document.body.appendChild(t);
+    t.animate([{transform:'translateY(0) rotate(0)'},{transform:'translateY(110vh) rotate('+((Math.random()*720-360)|0)+'deg)'}],{duration:1500+Math.random()*1800,easing:'ease-in'}).onfinish=()=>t.remove(); } }
+
   boot();
   </script>
 </body>
